@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -30,7 +30,6 @@ namespace FileAttributeChanger
                     throw;
                 }
             }
-
         }
 
         private void Form1_DragEnter(object sender, DragEventArgs e)
@@ -39,13 +38,26 @@ namespace FileAttributeChanger
             {
                 e.Effect = DragDropEffects.Copy;
             }
-
         }
 
         private void SetAttributes(string path)
         {
+            bool isDirectory = Directory.Exists(path);
+
             // set read-only to false regardless of current setting so that
             // modifications can be made to attributes.
+            if (isDirectory)
+            {
+                DirectoryInfo di = new DirectoryInfo(path);
+                di.Attributes = RemoveAttribute(di.Attributes, FileAttributes.ReadOnly);
+
+                SetDateTimesDirectory(path);
+                ModifyAttributesDirectory(path);
+
+                // Intentionally do NOT rename / change extension / move directories.
+                return;
+            }
+
             File.SetAttributes(path, RemoveAttribute(File.GetAttributes(path), FileAttributes.ReadOnly));
 
             SetDateTimes(path);
@@ -55,7 +67,6 @@ namespace FileAttributeChanger
 
             // Commit
             File.Move(path, newPath);
-
         }
 
         private static FileAttributes RemoveAttribute(FileAttributes attributes, FileAttributes attributesToRemove)
@@ -69,6 +80,13 @@ namespace FileAttributeChanger
             File.SetCreationTime(path, this.createdDatePicker.Value);
             File.SetLastWriteTime(path, this.modifiedDatePicker.Value);
             File.SetLastAccessTime(path, this.accessedDatePicker.Value);
+        }
+
+        private void SetDateTimesDirectory(string path)
+        {
+            Directory.SetCreationTime(path, this.createdDatePicker.Value);
+            Directory.SetLastWriteTime(path, this.modifiedDatePicker.Value);
+            Directory.SetLastAccessTime(path, this.accessedDatePicker.Value);
         }
 
         private void ModifyAttributes(string path)
@@ -89,6 +107,26 @@ namespace FileAttributeChanger
             }
         }
 
+        private void ModifyAttributesDirectory(string path)
+        {
+            DirectoryInfo di = new DirectoryInfo(path);
+
+            if (!CheckBox_AdvancedAttributes.Checked)
+            {
+                // remove all existing attributes
+                foreach (FileAttributes attribute in Enum.GetValues(typeof(FileAttributes)))
+                {
+                    di.Attributes = RemoveAttribute(di.Attributes, attribute);
+                }
+                // set attribute on directory to 'Normal'. 
+                di.Attributes = di.Attributes | FileAttributes.Normal;
+            }
+            else
+            {
+                SetAdvancedAttributesDirectory(di);
+            }
+        }
+
         private void SetAdvancedAttributes(string path)
         {
             File.SetAttributes(path, checkBox_readOnly.Checked ? File.GetAttributes(path) | FileAttributes.ReadOnly : RemoveAttribute(File.GetAttributes(path), FileAttributes.ReadOnly));
@@ -106,7 +144,25 @@ namespace FileAttributeChanger
             File.SetAttributes(path, checkBox_sparseFile.Checked ? File.GetAttributes(path) | FileAttributes.SparseFile : RemoveAttribute(File.GetAttributes(path), FileAttributes.SparseFile));
             File.SetAttributes(path, checkBox_system.Checked ? File.GetAttributes(path) | FileAttributes.System : RemoveAttribute(File.GetAttributes(path), FileAttributes.System));
             File.SetAttributes(path, checkBox_temporary.Checked ? File.GetAttributes(path) | FileAttributes.Temporary : RemoveAttribute(File.GetAttributes(path), FileAttributes.Temporary));
+        }
 
+        private void SetAdvancedAttributesDirectory(DirectoryInfo di)
+        {
+            di.Attributes = checkBox_readOnly.Checked ? di.Attributes | FileAttributes.ReadOnly : RemoveAttribute(di.Attributes, FileAttributes.ReadOnly);
+            di.Attributes = checkBox_hidden.Checked ? di.Attributes | FileAttributes.Hidden : RemoveAttribute(di.Attributes, FileAttributes.Hidden);
+            di.Attributes = checkBox_archive.Checked ? di.Attributes | FileAttributes.Archive : RemoveAttribute(di.Attributes, FileAttributes.Archive);
+            di.Attributes = checkBox_compressed.Checked ? di.Attributes | FileAttributes.Compressed : RemoveAttribute(di.Attributes, FileAttributes.Compressed);
+            //di.Attributes = checkBox_device.Checked ? di.Attributes | FileAttributes.Device : RemoveAttribute(di.Attributes, FileAttributes.Device);
+            di.Attributes = checkBox_directory.Checked ? di.Attributes | FileAttributes.Directory : RemoveAttribute(di.Attributes, FileAttributes.Directory);
+            di.Attributes = checkBox_encrypted.Checked ? di.Attributes | FileAttributes.Encrypted : RemoveAttribute(di.Attributes, FileAttributes.Encrypted);
+            di.Attributes = checkBox_integrityStream.Checked ? di.Attributes | FileAttributes.IntegrityStream : RemoveAttribute(di.Attributes, FileAttributes.IntegrityStream);
+            di.Attributes = checkBox_noScrubData.Checked ? di.Attributes | FileAttributes.NoScrubData : RemoveAttribute(di.Attributes, FileAttributes.NoScrubData);
+            di.Attributes = checkBox_notContentIndexed.Checked ? di.Attributes | FileAttributes.NotContentIndexed : RemoveAttribute(di.Attributes, FileAttributes.NotContentIndexed);
+            di.Attributes = checkBox_offline.Checked ? di.Attributes | FileAttributes.Offline : RemoveAttribute(di.Attributes, FileAttributes.Offline);
+            di.Attributes = checkBox_reparsePoint.Checked ? di.Attributes | FileAttributes.ReparsePoint : RemoveAttribute(di.Attributes, FileAttributes.ReparsePoint);
+            di.Attributes = checkBox_sparseFile.Checked ? di.Attributes | FileAttributes.SparseFile : RemoveAttribute(di.Attributes, FileAttributes.SparseFile);
+            di.Attributes = checkBox_system.Checked ? di.Attributes | FileAttributes.System : RemoveAttribute(di.Attributes, FileAttributes.System);
+            di.Attributes = checkBox_temporary.Checked ? di.Attributes | FileAttributes.Temporary : RemoveAttribute(di.Attributes, FileAttributes.Temporary);
         }
 
         private string RenameFile(string path)
@@ -162,7 +218,7 @@ namespace FileAttributeChanger
                 if (!textBox_FileExtChange.Text.Any(x => Path.GetInvalidFileNameChars().Contains(x)))
                 {
                     // change extension
-                    path = Path.ChangeExtension(path, textBox_FileExtChange.Text); 
+                    path = Path.ChangeExtension(path, textBox_FileExtChange.Text);
                 }
                 else
                 {
@@ -197,7 +253,6 @@ namespace FileAttributeChanger
                 textBox_RenamePattern.Enabled = true;
                 checkBox_GUID.Enabled = true;
             }
-
         }
 
         private void CheckBox_GUID_CheckedChanged(object sender, EventArgs e)
@@ -251,4 +306,3 @@ namespace FileAttributeChanger
         }
     }
 }
-
